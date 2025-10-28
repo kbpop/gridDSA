@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Animated Grid Fill</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background-color: #222;
+        color: white;
+      }
+      #controls {
+        margin: 1em 0;
+      }
+      input {
+        width: 80px;
+        padding: 0.3em;
+        border-radius: 5px;
+        border: none;
+        text-align: center;
+      }
+      button {
+        padding: 0.4em 0.8em;
+        border: none;
+        border-radius: 6px;
+        background: #4caf50;
+        color: white;
+        cursor: pointer;
+        font-size: 1em;
+        margin-left: 5px;
+      }
+      button:hover {
+        background: #45a049;
+      }
+      canvas {
+        border: 1px solid white;
+        background: #111;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Canvas Grid Generator</h2>
+    <div id="controls">
+      <label
+        >Canvas Width: <input id="canvasWidth" type="number" value="1000"
+      /></label>
+      <label
+        >Canvas Height: <input id="canvasHeight" type="number" value="1000"
+      /></label>
+      <label>Columns: <input id="cols" type="number" value="50" /></label>
+      <label>Rows: <input id="rows" type="number" value="50" /></label>
+      <button onclick="drawGrid()">Draw Grid</button>
+      <button onclick="fillTiles()">Fill Tiles</button>
+      <button onclick="createMaze()">Create Maze</button>
+    </div>
+
+    <canvas id="gridCanvas" width="1000" height="1000"></canvas>
+
+    <script>
+      let gridData = [];
+      let animationRunning = false;
+
+      function drawGrid() {
+        const canvas = document.getElementById("gridCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const cols = parseInt(document.getElementById("cols").value);
+        const rows = parseInt(document.getElementById("rows").value);
+        const width = parseInt(document.getElementById("canvasWidth").value);
+        const height = parseInt(document.getElementById("canvasHeight").value);
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.clearRect(0, 0, width, height);
+
+        const colWidth = width / cols;
+        const rowHeight = height / rows;
+
+        gridData = { cols, rows, colWidth, rowHeight, width, height };
+
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 1;
+
+        // Vertical lines
+        for (let i = 0; i <= cols; i++) {
+          const x = i * colWidth;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+
+        // Horizontal lines
+        for (let j = 0; j <= rows; j++) {
+          const y = j * rowHeight;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+      }
+
+      async function fillTiles() {
+        if (animationRunning || !gridData.cols) return;
+        animationRunning = true;
+
+        const canvas = document.getElementById("gridCanvas");
+        const ctx = canvas.getContext("2d");
+        ctx.lineWidth = 0.1;
+        const { cols, rows, colWidth, rowHeight } = gridData;
+
+        let i = 0;
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            // Pick a color
+            const hue = (c / cols) * 360;
+            ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+
+            // Fill the tile
+            ctx.fillRect(c * colWidth, r * rowHeight, colWidth, rowHeight);
+
+            // Redraw grid line
+            ctx.strokeStyle = "#222";
+            ctx.strokeRect(c * colWidth, r * rowHeight, colWidth, rowHeight);
+
+            // Delay for animation effect
+            await new Promise((resolve) => setTimeout(resolve, 40)); // 40ms per tile
+          }
+        }
+
+        animationRunning = false;
+      }
+
+      async function createMaze() {
+        animationRunning = true;
+
+        const canvas = document.getElementById("gridCanvas");
+        const ctx = canvas.getContext("2d");
+        const { cols, rows, colWidth, rowHeight } = gridData;
+
+        // define the datastructure here
+        g = [];
+        for (let r = 0; r < rows; r++) {
+          g[r] = [];
+          for (let c = 0; c < cols; c++) {
+            g[r][c] = { l: true, r: true, t: true, b: true };
+          }
+        }
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            // Pick a color
+            const hue = (c / cols) * 360;
+            ctx.fillStyle = `hsl(100, 70%, 100%)`;
+
+            // Fill the tile
+            ctx.fillRect(c * colWidth, r * rowHeight, colWidth, rowHeight);
+
+            // Redraw grid line
+            ctx.strokeStyle = "#000";
+
+            drawTileBorders(ctx, c, r, g[r][c]);
+
+            // Delay for animation effect
+            await new Promise((resolve) => setTimeout(resolve, 0)); // 40ms per tile
+          }
+        }
+
+        while (animationRunning) {
+          break;
+        }
+
+        animationRunning = false;
+      }
+
+      function drawTileBorders(ctx, c, r, cell) {
+        const { colWidth, rowHeight } = gridData;
+        const x = c * colWidth;
+        const y = r * rowHeight;
+
+        const gap = 2; // pixels of gap between tiles
+        const gx = x + gap / 2;
+        const gy = y + gap / 2;
+        const gColWidth = colWidth - gap;
+        const gRowHeight = rowHeight - gap;
+
+        ctx.beginPath();
+
+        if (cell.t) {
+          ctx.moveTo(gx, gy);
+          ctx.lineTo(gx + gColWidth, gy);
+        }
+        if (cell.r) {
+          ctx.moveTo(gx + gColWidth, gy);
+          ctx.lineTo(gx + gColWidth, gy + gRowHeight);
+        }
+        if (cell.b) {
+          ctx.moveTo(gx, gy + gRowHeight);
+          ctx.lineTo(gx + gColWidth, gy + gRowHeight);
+        }
+        if (cell.l) {
+          ctx.moveTo(gx, gy);
+          ctx.lineTo(gx, gy + gRowHeight);
+        }
+
+        ctx.stroke();
+      }
+      // Draw initial grid
+      drawGrid();
+    </script>
+  </body>
+</html>
