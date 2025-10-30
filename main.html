@@ -50,8 +50,8 @@
       <label
         >Canvas Height: <input id="canvasHeight" type="number" value="1000"
       /></label>
-      <label>Columns: <input id="cols" type="number" value="50" /></label>
-      <label>Rows: <input id="rows" type="number" value="50" /></label>
+      <label>Columns: <input id="cols" type="number" value="5" /></label>
+      <label>Rows: <input id="rows" type="number" value="5" /></label>
       <button onclick="drawGrid()">Draw Grid</button>
       <button onclick="fillTiles()">Fill Tiles</button>
       <button onclick="createMaze()">Create Maze</button>
@@ -135,21 +135,10 @@
         animationRunning = false;
       }
 
-      async function createMaze() {
-        animationRunning = true;
-
+      function gridFast() {
         const canvas = document.getElementById("gridCanvas");
         const ctx = canvas.getContext("2d");
         const { cols, rows, colWidth, rowHeight } = gridData;
-
-        // define the datastructure here
-        g = [];
-        for (let r = 0; r < rows; r++) {
-          g[r] = [];
-          for (let c = 0; c < cols; c++) {
-            g[r][c] = { l: true, r: true, t: true, b: true };
-          }
-        }
 
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
@@ -159,14 +148,54 @@
 
             // Fill the tile
             ctx.fillRect(c * colWidth, r * rowHeight, colWidth, rowHeight);
+          }
+        }
+      }
 
-            // Redraw grid line
-            ctx.strokeStyle = "#000";
+      async function createMaze() {
+        animationRunning = true;
 
-            drawTileBorders(ctx, c, r, g[r][c]);
+        const canvas = document.getElementById("gridCanvas");
+        const ctx = canvas.getContext("2d");
+        const { cols, rows, colWidth, rowHeight } = gridData;
+        gridFast();
 
-            // Delay for animation effect
-            await new Promise((resolve) => setTimeout(resolve, 0)); // 40ms per tile
+        // define the datastructure here
+        g = [];
+        set = [];
+        for (let r = 0; r < rows; r++) {
+          g[r] = [];
+          for (let c = 0; c < cols; c++) {
+            g[r][c] = [true, true, true, true];
+            set[rows * r + c] = [rows * r + c];
+          }
+        }
+
+        // set inital openings of maze
+        open = { x: 0, y: 0 };
+        end = { x: cols - 1, y: rows - 1 };
+
+        // Change inital openings of maze
+        g[open.x][open.y][0] = false;
+        g[end.x][end.y][1] = false;
+
+        while (!isConnected(set, rows, cols)) {
+          set = removeBorder(g, set, rows, cols);
+          console.log(set);
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              // Pick a color
+              const hue = (c / cols) * 360;
+              ctx.fillStyle = `hsl(100, 70%, 100%)`;
+
+              // Fill the tile
+              ctx.fillRect(c * colWidth, r * rowHeight, colWidth, rowHeight);
+
+              drawTileBorders(ctx, c, r, g[r][c]);
+
+              // Delay for animation effect
+              await new Promise((resolve) => setTimeout(resolve, 0)); // 40ms per tile
+            }
           }
         }
 
@@ -177,7 +206,7 @@
         animationRunning = false;
       }
 
-      function drawTileBorders(ctx, c, r, cell) {
+      async function drawTileBorders(ctx, c, r, cell) {
         const { colWidth, rowHeight } = gridData;
         const x = c * colWidth;
         const y = r * rowHeight;
@@ -189,26 +218,104 @@
         const gRowHeight = rowHeight - gap;
 
         ctx.beginPath();
+        ctx.strokeStyle = "black"; // make lines fully black
+        ctx.lineWidth = 2; // make lines thicker (try 3–4 for even bolder)
 
-        if (cell.t) {
+        if (cell[0]) {
+          // left
           ctx.moveTo(gx, gy);
-          ctx.lineTo(gx + gColWidth, gy);
+          ctx.lineTo(gx, gy + gRowHeight);
         }
-        if (cell.r) {
+        if (cell[1]) {
+          // right
           ctx.moveTo(gx + gColWidth, gy);
           ctx.lineTo(gx + gColWidth, gy + gRowHeight);
         }
-        if (cell.b) {
+        if (cell[2]) {
+          // top
+          ctx.moveTo(gx, gy);
+          ctx.lineTo(gx + gColWidth, gy);
+        }
+        if (cell[3]) {
+          // bottom
           ctx.moveTo(gx, gy + gRowHeight);
           ctx.lineTo(gx + gColWidth, gy + gRowHeight);
-        }
-        if (cell.l) {
-          ctx.moveTo(gx, gy);
-          ctx.lineTo(gx, gy + gRowHeight);
         }
 
         ctx.stroke();
       }
+
+      function removeBorder(g, set, rows, cols) {
+        const random_x = Math.floor(Math.random() * rows);
+        const random_y = Math.floor(Math.random() * cols);
+        const random_side = Math.floor(Math.random() * 4);
+        console.log(`x: ${random_x}, y: ${random_y}, side: ${random_side}`);
+
+        // edge checks
+        if (
+          (random_side === 0 && random_y === 0) || // left edge
+          (random_side === 1 && random_y === cols - 1) || // right edge
+          (random_side === 2 && random_x === 0) || // top edge
+          (random_side === 3 && random_x === rows - 1) // bottom edge
+        ) {
+          return set;
+        }
+
+        // remove the wall on this tile
+        g[random_x][random_y][random_side] = false;
+        const tileNum = random_x * rows + random_y;
+        let changeNum;
+        // remove the corresponding wall on the neighbor tile
+        if (random_side === 0) {
+          // left
+          g[random_x][random_y - 1][1] = false;
+          changeNum = random_x * rows + random_y - 1;
+        } else if (random_side === 1) {
+          // right
+          g[random_x][random_y + 1][0] = false;
+          changeNum = random_x * rows + random_y + 1;
+        } else if (random_side === 2) {
+          // top
+          g[random_x - 1][random_y][3] = false;
+          changeNum = (random_x - 1) * rows + random_y;
+        } else if (random_side === 3) {
+          // bottom
+          g[random_x + 1][random_y][2] = false;
+          changeNum = (random_x + 1) * rows + random_y;
+        }
+        // Disjoint set logic
+        let l;
+        let r;
+
+        for (let i = 0; i < set.length; i++) {
+          if (set[i].includes(changeNum)) {
+            l = i;
+          }
+          if (set[i].includes(tileNum)) {
+            r = i;
+          }
+        }
+        if (l === r && l !== undefined) {
+          return set;
+        }
+        set[l] = [...set[l], ...set[r]];
+        set.splice(r, 1);
+        return set;
+      }
+
+      function isConnected(set, rows, cols) {
+        for (let i = 0; i < set.length; i++) {
+          if (
+            set[i].includes(0) &&
+            set[i].includes(rows * (rows - 1) + cols - 1)
+          ) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
       // Draw initial grid
       drawGrid();
     </script>
