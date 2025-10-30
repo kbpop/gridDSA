@@ -179,24 +179,52 @@
         g[open.x][open.y][0] = false;
         g[end.x][end.y][1] = false;
 
-        while (!isConnected(set, rows, cols)) {
-          set = removeBorder(g, set, rows, cols);
-          console.log(set);
-          for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-              // Pick a color
-              const hue = (c / cols) * 360;
-              ctx.fillStyle = `hsl(100, 70%, 100%)`;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            // Pick a color
+            const hue = (c / cols) * 360;
+            ctx.fillStyle = `hsl(100, 70%, 100%)`;
 
-              // Fill the tile
-              ctx.fillRect(c * colWidth, r * rowHeight, colWidth, rowHeight);
+            // Fill the tile
+            ctx.fillRect(c * colWidth, r * rowHeight, colWidth, rowHeight);
 
-              drawTileBorders(ctx, c, r, g[r][c]);
+            drawTileBorders(ctx, c, r, g[r][c]);
 
-              // Delay for animation effect
-              await new Promise((resolve) => setTimeout(resolve, 0)); // 40ms per tile
-            }
+            // Delay for animation effect
+            await new Promise((resolve) => setTimeout(resolve, 0)); // 40ms per tile
           }
+        }
+
+        while (!isConnected(set, rows, cols)) {
+          const random_x = Math.floor(Math.random() * rows);
+          const random_y = Math.floor(Math.random() * cols);
+          ({ set, x, y } = removeBorder(
+            g,
+            set,
+            rows,
+            cols,
+            random_x,
+            random_y
+          ));
+          // Pick a color
+          ctx.fillStyle = `hsl(100, 70%, 100%)`;
+
+          ctx.fillRect(
+            random_y * colWidth,
+            random_x * rowHeight,
+            colWidth,
+            rowHeight
+          );
+
+          drawTileBorders(ctx, random_y, random_x, g[random_x][random_y]);
+
+          // Fill the neighbor tile
+          ctx.fillRect(y * colWidth, x * rowHeight, colWidth, rowHeight);
+
+          drawTileBorders(ctx, y, x, g[x][y]);
+
+          // Delay for animation effect
+          await new Promise((resolve) => setTimeout(resolve, 0)); // 40ms per tile
         }
 
         while (animationRunning) {
@@ -245,11 +273,11 @@
         ctx.stroke();
       }
 
-      function removeBorder(g, set, rows, cols) {
-        const random_x = Math.floor(Math.random() * rows);
-        const random_y = Math.floor(Math.random() * cols);
+      function removeBorder(g, set, rows, cols, random_x, random_y) {
         const random_side = Math.floor(Math.random() * 4);
         console.log(`x: ${random_x}, y: ${random_y}, side: ${random_side}`);
+        let x = random_x;
+        let y = random_y;
 
         // edge checks
         if (
@@ -258,7 +286,7 @@
           (random_side === 2 && random_x === 0) || // top edge
           (random_side === 3 && random_x === rows - 1) // bottom edge
         ) {
-          return set;
+          return { set, x, y };
         }
 
         // remove the wall on this tile
@@ -270,18 +298,22 @@
           // left
           g[random_x][random_y - 1][1] = false;
           changeNum = random_x * rows + random_y - 1;
+          y = random_y - 1;
         } else if (random_side === 1) {
           // right
           g[random_x][random_y + 1][0] = false;
           changeNum = random_x * rows + random_y + 1;
+          y = random_y + 1;
         } else if (random_side === 2) {
           // top
           g[random_x - 1][random_y][3] = false;
           changeNum = (random_x - 1) * rows + random_y;
+          x = random_x - 1;
         } else if (random_side === 3) {
           // bottom
           g[random_x + 1][random_y][2] = false;
           changeNum = (random_x + 1) * rows + random_y;
+          x = random_x + 1;
         }
         // Disjoint set logic
         let l;
@@ -296,11 +328,11 @@
           }
         }
         if (l === r && l !== undefined) {
-          return set;
+          return { set, x, y };
         }
         set[l] = [...set[l], ...set[r]];
         set.splice(r, 1);
-        return set;
+        return { set, x, y };
       }
 
       function isConnected(set, rows, cols) {
